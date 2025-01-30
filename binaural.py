@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 from io import BytesIO
-import soundfile as sf
+from scipy.io.wavfile import write  # Replaced soundfile with scipy
 
 # Configure Streamlit page
 st.set_page_config(page_title="Binaural Beat Generator", page_icon="🎧")
@@ -25,30 +25,29 @@ def generate_binaural_beat(beat_type, duration_sec, base_freq=220.0):
     right = np.sin(2 * np.pi * (base_freq + beat_freq) * t)
     stereo_audio = np.column_stack((left, right))
     
-    # Normalize and convert to WAV bytes
+    # Normalize to 16-bit range and convert to int16
+    stereo_audio = (stereo_audio * 32767).astype(np.int16)
+    
+    # Save to WAV bytes using scipy
     buffer = BytesIO()
-    sf.write(buffer, stereo_audio, samplerate=sample_rate, format='WAV')
+    write(buffer, sample_rate, stereo_audio)
     return buffer.getvalue()
 
-# Streamlit UI
+# Streamlit UI (unchanged)
 st.title("🎧 Binaural Beat Generator")
 st.markdown("Generate binaural beats for focus, sleep, or meditation!")
 
-# User inputs
 beat_type = st.selectbox(
     "Select Beat Type",
     options=list(BRAINWAVE_FREQUENCIES.keys()),
-    index=2  # Default to Alpha
+    index=2
 )
 duration = st.slider("Duration (minutes)", 1, 60, 10)
 
 if st.button("Generate Beat"):
     with st.spinner("Generating..."):
-        # Create audio and display
         audio_bytes = generate_binaural_beat(beat_type, duration * 60)
         st.audio(audio_bytes, format='audio/wav')
-        
-        # Add download button
         st.download_button(
             label="Download WAV File",
             data=audio_bytes,
