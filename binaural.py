@@ -1,62 +1,57 @@
-import pyaudio
+import streamlit as st
 import numpy as np
-import time
+from io import BytesIO
+import soundfile as sf
 
-# Define brainwave frequencies and their purposes
+# Configure Streamlit page
+st.set_page_config(page_title="Binaural Beat Generator", page_icon="🎧")
+
+# Brainwave frequency mapping
 BRAINWAVE_FREQUENCIES = {
-    "delta": 2.0,    # Deep sleep (0.5-4 Hz)
-    "theta": 6.0,    # Meditation (4-8 Hz)
-    "alpha": 10.0,   # Relaxation (8-14 Hz)
-    "beta": 18.0,    # Focus (14-30 Hz)
-    "gamma": 40.0    # Cognitive enhancement (30-100 Hz)
+    "delta": 2.0,
+    "theta": 6.0,
+    "alpha": 10.0,
+    "beta": 18.0,
+    "gamma": 40.0
 }
 
 def generate_binaural_beat(beat_type, duration_sec, base_freq=220.0):
-    # Get the beat frequency (difference between left/right tones)
-    beat_freq = BRAINWAVE_FREQUENCIES.get(beat_type.lower(), 10.0)  # Default to alpha
-    
-    # Left and right frequencies
-    left_freq = base_freq
-    right_freq = base_freq + beat_freq
-    
-    # Audio parameters
-    sample_rate = 44100  # Standard audio sample rate
+    beat_freq = BRAINWAVE_FREQUENCIES.get(beat_type.lower(), 10.0)
+    sample_rate = 44100
     t = np.linspace(0, duration_sec, int(sample_rate * duration_sec), False)
     
-    # Generate sine waves for left/right ears
-    left_tone = np.sin(left_freq * 2 * np.pi * t)
-    right_tone = np.sin(right_freq * 2 * np.pi * t)
+    # Generate tones
+    left = np.sin(2 * np.pi * base_freq * t)
+    right = np.sin(2 * np.pi * (base_freq + beat_freq) * t)
+    stereo_audio = np.column_stack((left, right))
     
-    # Combine into stereo (2-channel) audio
-    stereo_audio = np.column_stack((left_tone, right_tone))
-    
-    # Normalize to 16-bit range and convert to bytes
-    audio_data = (stereo_audio * 32767).astype(np.int16).tobytes()
-    
-    # Play audio using pyaudio
-    p = pyaudio.PyAudio()
-    stream = p.open(
-        format=pyaudio.paInt16,
-        channels=2,
-        rate=sample_rate,
-        output=True
-    )
-    
-    print(f"Playing {beat_type.capitalize()} binaural beat ({beat_freq} Hz) for {duration_sec} seconds...")
-    stream.write(audio_data)
-    
-    # Cleanup
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
+    # Normalize and convert to WAV bytes
+    buffer = BytesIO()
+    sf.write(buffer, stereo_audio, samplerate=sample_rate, format='WAV')
+    return buffer.getvalue()
 
-# Example usage
-if __name__ == "__main__":
-    beat_type = input("Enter beat type (delta/theta/alpha/beta/gamma): ")
-    duration = int(input("Enter duration (seconds): "))
-    
-    if beat_type.lower() not in BRAINWAVE_FREQUENCIES:
-        print("Invalid beat type. Defaulting to alpha.")
-        beat_type = "alpha"
-    
-    generate_binaural_beat(beat_type, duration)
+# Streamlit UI
+st.title("🎧 Binaural Beat Generator")
+st.markdown("Generate binaural beats for focus, sleep, or meditation!")
+
+# User inputs
+beat_type = st.selectbox(
+    "Select Beat Type",
+    options=list(BRAINWAVE_FREQUENCIES.keys()),
+    index=2  # Default to Alpha
+)
+duration = st.slider("Duration (minutes)", 1, 60, 10)
+
+if st.button("Generate Beat"):
+    with st.spinner("Generating..."):
+        # Create audio and display
+        audio_bytes = generate_binaural_beat(beat_type, duration * 60)
+        st.audio(audio_bytes, format='audio/wav')
+        
+        # Add download button
+        st.download_button(
+            label="Download WAV File",
+            data=audio_bytes,
+            file_name=f"{beat_type}_binaural.wav",
+            mime="audio/wav"
+        )
