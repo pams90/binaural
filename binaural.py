@@ -6,105 +6,131 @@ from scipy.io.wavfile import write
 # Configure Streamlit page
 st.set_page_config(page_title="Binaural Beat Generator", page_icon="🎧")
 
-# Brainwave mapping with purposes
+# Full purpose-frequency mapping
 PURPOSE_MAPPING = {
-    "Deep Sleep & Healing": {
-        "type": "delta",
-        "frequency": "0.5-4 Hz",
-        "benefits": "Promotes deep sleep, physical recovery, and immune function"
+    # Scientific/Medical Applications
+    "DNA/Cell Repair": {
+        "frequency": 528,  # "Mi" in Solfeggio (DNA repair)
+        "benefits": "Cellular regeneration, mitochondrial optimization"
     },
-    "Meditation & Creativity": {
-        "type": "theta",
-        "frequency": "4-8 Hz",
-        "benefits": "Enhances meditation, intuition, and creative thinking"
+    "Pain Relief": {
+        "frequency": 174,  # Solfeggio (physical pain)
+        "benefits": "Reduces chronic pain, inflammation"
     },
-    "Relaxation & Stress Relief": {
-        "type": "alpha",
-        "frequency": "8-14 Hz",
-        "benefits": "Reduces anxiety, induces calm focus, and mindfulness"
+    "Vagus Nerve Healing": {
+        "frequency": 42,  # Low delta range
+        "benefits": "Nervous system regulation, inflammation reduction"
     },
-    "Focus & Productivity": {
-        "type": "beta",
-        "frequency": "14-30 Hz",
-        "benefits": "Improves concentration, alertness, and logical thinking"
+    "Immune Boost": {
+        "frequency": 9.6,  # Theta-delta boundary
+        "benefits": "Enhances immune response"
     },
-    "Peak Performance": {
-        "type": "gamma",
-        "frequency": "30-100 Hz",
-        "benefits": "Boosts memory, cognitive processing, and problem-solving"
+
+    # Brainwave States
+    "Deep Sleep (Delta)": {
+        "frequency": (0.5, 4),
+        "benefits": "HGH release, physical regeneration"
+    },
+    "Creativity (Theta)": {
+        "frequency": (4, 8),
+        "benefits": "Subconscious access, artistic flow"
+    },
+
+    # Solfeggio Frequencies
+    "Manifest Prosperity (369Hz)": {
+        "frequency": 369,
+        "benefits": "Abundance magnetism, quantum manifestation"
+    },
+    "Karmic Cleansing (741Hz)": {
+        "frequency": 741,
+        "benefits": "Toxic energy release, electromagnetic detox"
+    },
+    "Divine Connection (888Hz)": {
+        "frequency": 888,
+        "benefits": "Christ consciousness, infinite flow"
+    },
+
+    # Metaphysical/Energy
+    "Chakra Cleansing (639Hz)": {
+        "frequency": 639,
+        "benefits": "Heart chakra activation, relationship healing"
+    },
+    "Aura Cleansing (963Hz)": {
+        "frequency": 963,
+        "benefits": "Crown chakra activation, lightbody alignment"
+    },
+    "God Frequency (111Hz)": {
+        "frequency": 111,
+        "benefits": "Divine masculine alignment, sacred geometry"
+    },
+    "Angel Frequency (444Hz)": {
+        "frequency": 444,
+        "benefits": "Archangelic connection, divine protection"
     }
 }
 
-BRAINWAVE_FREQUENCIES = {
-    "delta": 2.0,
-    "theta": 6.0,
-    "alpha": 10.0,
-    "beta": 18.0,
-    "gamma": 40.0
-}
-
-def generate_binaural_beat(purpose, duration_sec, base_freq=220.0):
-    beat_type = PURPOSE_MAPPING[purpose]["type"]
-    beat_freq = BRAINWAVE_FREQUENCIES[beat_type]
+def generate_tone(frequency, duration_sec, beat_type=None):
     sample_rate = 44100
     t = np.linspace(0, duration_sec, int(sample_rate * duration_sec), False)
     
-    # Generate tones
-    left = np.sin(2 * np.pi * base_freq * t)
-    right = np.sin(2 * np.pi * (base_freq + beat_freq) * t)
-    stereo_audio = np.column_stack((left, right))
+    if isinstance(frequency, tuple):  # Binaural beat range
+        base = 200  # Carrier frequency
+        beat = (frequency[0] + frequency[1])/2  # Average for demonstration
+        left = np.sin(2 * np.pi * base * t)
+        right = np.sin(2 * np.pi * (base + beat) * t)
+    else:  # Pure frequency
+        left = right = np.sin(2 * np.pi * frequency * t)
     
-    # Normalize and convert to 16-bit
+    stereo_audio = np.column_stack((left, right))
     stereo_audio = (stereo_audio * 32767).astype(np.int16)
     
-    # Save to WAV
     buffer = BytesIO()
     write(buffer, sample_rate, stereo_audio)
     return buffer.getvalue()
 
 # Streamlit UI
-st.title("🎧 Purpose-Based Binaural Beat Generator")
-st.markdown("""
-Select your desired mental state or purpose below to generate customized binaural beats!
-""")
+st.title("🎵 Universal Frequency Generator")
+st.markdown("### Scientific & Metaphysical Frequency Applications")
 
 # Purpose selection
 selected_purpose = st.selectbox(
     "Choose Your Purpose",
     options=list(PURPOSE_MAPPING.keys()),
-    index=2  # Default to Relaxation
+    format_func=lambda x: f"{x} ({PURPOSE_MAPPING[x]['frequency']}Hz)" 
+    if isinstance(PURPOSE_MAPPING[x]['frequency'], (int, float)) 
+    else f"{x} ({PURPOSE_MAPPING[x]['frequency'][0]}-{PURPOSE_MAPPING[x]['frequency'][1]}Hz)"
 )
 
-# Display purpose details
-purpose_details = PURPOSE_MAPPING[selected_purpose]
+# Display details
+details = PURPOSE_MAPPING[selected_purpose]
 st.markdown(f"""
-**{selected_purpose}**  
-- **Frequency Range**: {purpose_details['frequency']}  
-- **Key Benefits**: {purpose_details['benefits']}
+**Mechanism**  
+{details["benefits"]}  
+**Frequency:** {details['frequency']}Hz
 """)
 
-# Duration input
-duration = st.slider("Session Duration (minutes)", 1, 60, 15)
+# Generate audio
+duration = st.slider("Session Duration (minutes)", 1, 120, 33)
+if st.button("Activate Frequency"):
+    with st.spinner("Tuning to Cosmic Resonance..."):
+        audio = generate_tone(details["frequency"], duration*60)
+        st.audio(audio, format='audio/wav')
+        st.download_button("Download Frequency", audio, f"{selected_purpose}.wav")
 
-if st.button("Generate Binaural Beat"):
-    with st.spinner(f"Creating {selected_purpose} Beat..."):
-        audio_bytes = generate_binaural_beat(selected_purpose, duration * 60)
-        st.audio(audio_bytes, format='audio/wav')
-        
-        # Download button
-        st.download_button(
-            label="Download Audio File",
-            data=audio_bytes,
-            file_name=f"{selected_purpose.replace(' ', '_')}_beat.wav",
-            mime="audio/wav"
-        )
-
-# Instructions
-st.markdown("---")
+# Frequency Legend
 st.markdown("""
-**Usage Tips:**
-1. Use headphones for best results
-2. Find a quiet environment
-3. Start with 10-15 minute sessions
-4. Combine with related activities (e.g., meditation for theta waves)
+### Frequency Legend
+| Purpose/Frequency | Key Applications |
+|-------------------|-------------------|
+| **174Hz** | Pain relief, physical grounding |
+| **285Hz** | Tissue regeneration |
+| **396Hz** | Fear release, root chakra |
+| **417Hz** | Trauma cleansing, change facilitation |
+| **528Hz** | DNA repair, "Miracle tone" |
+| **639Hz** | Relationship healing, heart chakra |
+| **741Hz** | Intuition boost, electromagnetic detox |
+| **852Hz** | Spiritual awakening, pineal activation |
+| **963Hz** | Cosmic connection, crown chakra |
+| **111Hz-222Hz** | Sacred geometry, divine masculine/feminine |
+| **333Hz-999Hz** | Angelic communication, ascension codes |
 """)
