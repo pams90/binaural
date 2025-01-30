@@ -1,0 +1,62 @@
+import pyaudio
+import numpy as np
+import time
+
+# Define brainwave frequencies and their purposes
+BRAINWAVE_FREQUENCIES = {
+    "delta": 2.0,    # Deep sleep (0.5-4 Hz)
+    "theta": 6.0,    # Meditation (4-8 Hz)
+    "alpha": 10.0,   # Relaxation (8-14 Hz)
+    "beta": 18.0,    # Focus (14-30 Hz)
+    "gamma": 40.0    # Cognitive enhancement (30-100 Hz)
+}
+
+def generate_binaural_beat(beat_type, duration_sec, base_freq=220.0):
+    # Get the beat frequency (difference between left/right tones)
+    beat_freq = BRAINWAVE_FREQUENCIES.get(beat_type.lower(), 10.0)  # Default to alpha
+    
+    # Left and right frequencies
+    left_freq = base_freq
+    right_freq = base_freq + beat_freq
+    
+    # Audio parameters
+    sample_rate = 44100  # Standard audio sample rate
+    t = np.linspace(0, duration_sec, int(sample_rate * duration_sec), False)
+    
+    # Generate sine waves for left/right ears
+    left_tone = np.sin(left_freq * 2 * np.pi * t)
+    right_tone = np.sin(right_freq * 2 * np.pi * t)
+    
+    # Combine into stereo (2-channel) audio
+    stereo_audio = np.column_stack((left_tone, right_tone))
+    
+    # Normalize to 16-bit range and convert to bytes
+    audio_data = (stereo_audio * 32767).astype(np.int16).tobytes()
+    
+    # Play audio using pyaudio
+    p = pyaudio.PyAudio()
+    stream = p.open(
+        format=pyaudio.paInt16,
+        channels=2,
+        rate=sample_rate,
+        output=True
+    )
+    
+    print(f"Playing {beat_type.capitalize()} binaural beat ({beat_freq} Hz) for {duration_sec} seconds...")
+    stream.write(audio_data)
+    
+    # Cleanup
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
+
+# Example usage
+if __name__ == "__main__":
+    beat_type = input("Enter beat type (delta/theta/alpha/beta/gamma): ")
+    duration = int(input("Enter duration (seconds): "))
+    
+    if beat_type.lower() not in BRAINWAVE_FREQUENCIES:
+        print("Invalid beat type. Defaulting to alpha.")
+        beat_type = "alpha"
+    
+    generate_binaural_beat(beat_type, duration)
